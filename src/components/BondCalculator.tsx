@@ -1,6 +1,7 @@
-// components/BondCalculator.tsx - Обновленный основной компонент калькулятора
+// src/components/BondCalculator.tsx - Updated with portfolio management
 import React, { useState, useEffect, ChangeEvent } from "react";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, ArrowLeft, Save } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   BondParams,
   CouponSchedule,
@@ -9,50 +10,57 @@ import {
   TabType,
 } from "../types";
 import { calculateInvestment } from "../services/calculator";
+import { Portfolio } from "../utils/portfolioManager";
 import Navigation from "./Navigation";
 import ParametersTab from "./ParametersTab";
 import CouponScheduleTab from "./CouponScheduleTab";
 import ResultsTab from "./ResultsTab";
 import ChartsTab from "./ChartsTab";
 import MonthlyDataTab from "./MonthlyDataTab";
-import HelpGuide from "./HelpGuide";
+import HelpGuide from "./HelpGuide.tsx";
 
-const BondCalculator: React.FC = () => {
-  // Получаем текущий месяц и год для инициализации
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth() + 1; // JavaScript месяцы начинаются с 0
-  const currentYear = currentDate.getFullYear();
+interface BondCalculatorProps {
+  portfolio: Portfolio;
+  onPortfolioUpdate: (portfolio: Portfolio) => void;
+}
 
-  const [bondParams, setBondParams] = useState<BondParams>({
-    initialInvestment: 100000,
-    monthlyInvestment: 5000,
-    bondPrice: 1020,
-    bondNominal: 1000,
-    couponAmount: 20,
-    brokerCommission: 0.3,
-    taxRate: 13,
-    startMonth: currentMonth, // Инициализируем текущим месяцем
-    startYear: currentYear, // Инициализируем текущим годом
-  });
+const BondCalculator: React.FC<BondCalculatorProps> = ({
+  portfolio,
+  onPortfolioUpdate,
+}) => {
+  const navigate = useNavigate();
+  const { portfolioId } = useParams();
 
-  const [couponSchedule, setCouponSchedule] = useState<CouponSchedule[]>([]);
+  const [bondParams, setBondParams] = useState<BondParams>(
+    portfolio.bondParams,
+  );
+  const [couponSchedule, setCouponSchedule] = useState<CouponSchedule[]>(
+    portfolio.couponSchedule,
+  );
   const [results, setResults] = useState<CalculationResults | null>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>("parameters");
-  const [duration, setDuration] = useState<number>(12);
+  const [duration, setDuration] = useState<number>(portfolio.duration);
+  const [portfolioName, setPortfolioName] = useState<string>(portfolio.name);
+  const [unsavedChanges, setUnsavedChanges] = useState<boolean>(false);
 
-  // Инициализация расписания купонов
+  // Check if the current portfolio ID matches the URL parameter
+  useEffect(() => {
+    // If the portfolio ID from props doesn't match the URL parameter, redirect
+    if (portfolioId && portfolio.id !== portfolioId) {
+      navigate(`/portfolio/${portfolio.id}`, { replace: true });
+    }
+  }, [portfolioId, portfolio.id, navigate]);
+
+  // Initialize coupon schedule if empty
   useEffect(() => {
     if (couponSchedule.length === 0) {
       const defaultSchedule: CouponSchedule[] = [];
-      const startDate = new Date(
-        bondParams.startYear,
-        bondParams.startMonth - 1,
-      );
+      const currentDate = new Date();
 
       for (let i = 1; i <= 12; i++) {
-        const paymentDate = new Date(startDate);
-        paymentDate.setMonth(startDate.getMonth() + i);
+        const paymentDate = new Date(currentDate);
+        paymentDate.setMonth(currentDate.getMonth() + i);
 
         defaultSchedule.push({
           month: paymentDate.getMonth() + 1,
@@ -62,40 +70,27 @@ const BondCalculator: React.FC = () => {
       }
 
       setCouponSchedule(defaultSchedule);
+      setUnsavedChanges(true);
     }
-  }, [bondParams.startMonth, bondParams.startYear]);
+  }, []);
 
-  const handleInputChange = (
-    e: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLSelectElement>,
-  ) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    setBondParams({
+      ...bondParams,
+      [name]: parseFloat(value) || 0,
+    });
+    setUnsavedChanges(true);
+  };
 
-    // Для числовых полей преобразуем строку в число
-    if (
-      name === "initialInvestment" ||
-      name === "monthlyInvestment" ||
-      name === "bondPrice" ||
-      name === "bondNominal" ||
-      name === "couponAmount" ||
-      name === "brokerCommission" ||
-      name === "taxRate" ||
-      name === "startMonth" ||
-      name === "startYear"
-    ) {
-      setBondParams({
-        ...bondParams,
-        [name]: parseFloat(value) || 0,
-      });
-    } else {
-      setBondParams({
-        ...bondParams,
-        [name]: value,
-      });
-    }
+  const removeAllCouponPayments = () => {
+    setCouponSchedule([]);
+    setUnsavedChanges(true);
   };
 
   const handleDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
     setDuration(parseInt(e.target.value) || 1);
+    setUnsavedChanges(true);
   };
 
   const handleCouponScheduleChange = (
@@ -106,12 +101,13 @@ const BondCalculator: React.FC = () => {
     const updatedSchedule = [...couponSchedule];
     updatedSchedule[index][field] = value;
     setCouponSchedule(updatedSchedule);
+    setUnsavedChanges(true);
   };
 
   const addCouponPayment = () => {
     const lastPayment = couponSchedule[couponSchedule.length - 1] || {
-      month: bondParams.startMonth,
-      year: bondParams.startYear,
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
       amount: bondParams.couponAmount,
     };
 
@@ -131,13 +127,31 @@ const BondCalculator: React.FC = () => {
         amount: bondParams.couponAmount,
       },
     ]);
+    setUnsavedChanges(true);
   };
 
   const removeCouponPayment = (index: number) => {
     setCouponSchedule(couponSchedule.filter((_, i) => i !== index));
+    setUnsavedChanges(true);
   };
 
-  // Пересчет при изменении параметров
+  const handlePortfolioNameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setPortfolioName(e.target.value);
+    setUnsavedChanges(true);
+  };
+
+  const savePortfolio = () => {
+    onPortfolioUpdate({
+      ...portfolio,
+      name: portfolioName,
+      bondParams,
+      couponSchedule,
+      duration,
+    });
+    setUnsavedChanges(false);
+  };
+
+  // Recalculate on parameter changes
   useEffect(() => {
     const { results, monthlyData } = calculateInvestment(
       bondParams,
@@ -148,13 +162,69 @@ const BondCalculator: React.FC = () => {
     setMonthlyData(monthlyData);
   }, [bondParams, couponSchedule, duration]);
 
+  // Confirm before leaving if there are unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (unsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [unsavedChanges]);
+
   return (
     <div className="bg-gray-100 min-h-screen p-4">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white shadow rounded-lg p-6 mb-6">
-          <h1 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-            <TrendingUp className="mr-2" /> Калькулятор инвестиций в облигации
-          </h1>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center">
+              <button
+                onClick={() => {
+                  if (unsavedChanges) {
+                    if (
+                      window.confirm(
+                        "У вас есть несохраненные изменения. Вы уверены, что хотите вернуться без сохранения?",
+                      )
+                    ) {
+                      navigate("/");
+                    }
+                  } else {
+                    navigate("/");
+                  }
+                }}
+                className="mr-4 p-2 rounded-full hover:bg-gray-100"
+                aria-label="Вернуться к списку портфелей"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex items-center">
+                <TrendingUp className="mr-2 w-6 h-6 text-blue-500" />
+                <input
+                  type="text"
+                  value={portfolioName}
+                  onChange={handlePortfolioNameChange}
+                  className="text-xl font-bold text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none px-1"
+                />
+              </div>
+            </div>
+            <button
+              onClick={savePortfolio}
+              disabled={!unsavedChanges}
+              className={`px-4 py-2 rounded flex items-center ${
+                unsavedChanges
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              <Save className="w-4 h-4 mr-1" /> Сохранить
+            </button>
+          </div>
 
           <Navigation activeTab={activeTab} onChangeTab={setActiveTab} />
 
@@ -173,6 +243,8 @@ const BondCalculator: React.FC = () => {
               onCouponScheduleChange={handleCouponScheduleChange}
               onAddCouponPayment={addCouponPayment}
               onRemoveCouponPayment={removeCouponPayment}
+              bondParams={bondParams}
+              onRemoveAllCouponPayments={removeAllCouponPayments}
             />
           )}
 

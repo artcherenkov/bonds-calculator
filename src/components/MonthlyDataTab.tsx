@@ -151,20 +151,9 @@ const MonthlyDataTab: React.FC<MonthlyDataTabProps> = ({ monthlyData }) => {
             {monthlyData.map((item, index) => (
               <tr
                 key={index}
-                className={
-                  item.isInitial
-                    ? "bg-blue-50"
-                    : index % 2 === 0
-                      ? "bg-white"
-                      : "bg-gray-50"
-                }
+                className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
               >
-                <td className="px-3 py-2 whitespace-nowrap">
-                  {item.isInitial && (
-                    <span className="text-blue-600 font-semibold">Начало</span>
-                  )}
-                  {!item.isInitial && item.month}
-                </td>
+                <td className="px-3 py-2 whitespace-nowrap">{item.month}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{item.date}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {formatNumber(item.bonds, 0)}

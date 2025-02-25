@@ -1,15 +1,83 @@
-// components/ParametersTab.tsx - Обновленная вкладка с параметрами
+// components/ParametersTab.tsx - Enhanced with tooltips
 import React, { ChangeEvent } from "react";
+import { HelpCircle } from "lucide-react";
 import { BondParams } from "../types";
+import Tooltip from "./Tooltip";
+import { formatNumber } from "../utils/formatters";
 
 interface ParametersTabProps {
   bondParams: BondParams;
   duration: number;
-  onBondParamsChange: (
-    e: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLSelectElement>,
-  ) => void;
+  onBondParamsChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onDurationChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }
+
+// Enhanced Number Input that formats values for display
+const NumberInput: React.FC<{
+  name: string;
+  value: number;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  label: string;
+  tooltip: string;
+  step?: string;
+  min?: string;
+  max?: string;
+  prefix?: string;
+  suffix?: string;
+}> = ({
+  name,
+  value,
+  onChange,
+  label,
+  tooltip,
+  step = "1",
+  min = "0",
+  max,
+  prefix,
+  suffix,
+}) => {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center mb-1">
+        <label className="block text-gray-700">{label}</label>
+        <Tooltip content={tooltip}>
+          <button className="ml-1 text-gray-400 hover:text-gray-600">
+            <HelpCircle className="w-4 h-4" />
+          </button>
+        </Tooltip>
+      </div>
+      <div className="relative">
+        {prefix && (
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+            {prefix}
+          </div>
+        )}
+        <input
+          type="number"
+          name={name}
+          value={value}
+          onChange={onChange}
+          step={step}
+          min={min}
+          max={max}
+          className={`w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300 ${
+            prefix ? "pl-8" : ""
+          } ${suffix ? "pr-10" : ""}`}
+        />
+        {suffix && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
+            {suffix}
+          </div>
+        )}
+      </div>
+      <p className="text-xs text-gray-500 mt-1">
+        Текущее значение: {prefix || ""}
+        {formatNumber(value)}
+        {suffix || ""}
+      </p>
+    </div>
+  );
+};
 
 const ParametersTab: React.FC<ParametersTabProps> = ({
   bondParams,
@@ -17,189 +85,130 @@ const ParametersTab: React.FC<ParametersTabProps> = ({
   onBondParamsChange,
   onDurationChange,
 }) => {
-  // Генерируем список месяцев для выбора
-  const months = [
-    { value: 1, label: "Январь" },
-    { value: 2, label: "Февраль" },
-    { value: 3, label: "Март" },
-    { value: 4, label: "Апрель" },
-    { value: 5, label: "Май" },
-    { value: 6, label: "Июнь" },
-    { value: 7, label: "Июль" },
-    { value: 8, label: "Август" },
-    { value: 9, label: "Сентябрь" },
-    { value: 10, label: "Октябрь" },
-    { value: 11, label: "Ноябрь" },
-    { value: 12, label: "Декабрь" },
-  ];
-
-  // Генерируем список лет для выбора (текущий год и 5 лет вперед)
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 6 }, (_, i) => currentYear + i);
-
   return (
-    <>
-      <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <p className="text-sm text-blue-700">
-          Изменение параметров моментально влияет на результаты расчётов
-        </p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h2 className="text-lg font-semibold mb-4 text-gray-700">
-            Параметры инвестиции
-          </h2>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Начальная инвестиция (₽)
-            </label>
-            <input
-              type="number"
-              name="initialInvestment"
-              value={bondParams.initialInvestment}
-              onChange={onBondParamsChange}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              min="0"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Ежемесячное пополнение (₽)
-            </label>
-            <input
-              type="number"
-              name="monthlyInvestment"
-              value={bondParams.monthlyInvestment}
-              onChange={onBondParamsChange}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              min="0"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Дата начала инвестирования
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                name="startMonth"
-                value={bondParams.startMonth}
-                onChange={onBondParamsChange}
-                className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                {months.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                name="startYear"
-                value={bondParams.startYear}
-                onChange={onBondParamsChange}
-                className="p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              >
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Комиссия брокера (%)
-            </label>
-            <input
-              type="number"
-              name="brokerCommission"
-              value={bondParams.brokerCommission}
-              onChange={onBondParamsChange}
-              step="0.1"
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              min="0"
-              max="100"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Ставка налога (%)
-            </label>
-            <input
-              type="number"
-              name="taxRate"
-              value={bondParams.taxRate}
-              onChange={onBondParamsChange}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              min="0"
-              max="100"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Период расчета (месяцев)
-            </label>
-            <input
-              type="number"
-              name="duration"
-              value={duration}
-              onChange={onDurationChange}
-              min="1"
-              max="120"
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-            />
-          </div>
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h2 className="text-lg font-semibold mb-4 text-gray-700">
+          Параметры инвестиции
+        </h2>
 
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h2 className="text-lg font-semibold mb-4 text-gray-700">
-            Параметры облигации
-          </h2>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Текущая цена облигации (₽)
-            </label>
-            <input
-              type="number"
-              name="bondPrice"
-              value={bondParams.bondPrice}
-              onChange={onBondParamsChange}
-              step="0.01"
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              min="0.01"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Номинал облигации (₽)
-            </label>
-            <input
-              type="number"
-              name="bondNominal"
-              value={bondParams.bondNominal}
-              onChange={onBondParamsChange}
-              step="0.01"
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              min="0.01"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Размер купона (₽)
-            </label>
-            <input
-              type="number"
-              name="couponAmount"
-              value={bondParams.couponAmount}
-              onChange={onBondParamsChange}
-              step="0.01"
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-300"
-              min="0"
-            />
-          </div>
+        <NumberInput
+          name="initialInvestment"
+          value={bondParams.initialInvestment}
+          onChange={onBondParamsChange}
+          label="Начальная инвестиция"
+          tooltip="Сумма средств, которую вы инвестируете изначально для покупки облигаций"
+          step="100"
+          suffix=" ₽"
+        />
+
+        <NumberInput
+          name="monthlyInvestment"
+          value={bondParams.monthlyInvestment}
+          onChange={onBondParamsChange}
+          label="Ежемесячное пополнение"
+          tooltip="Сумма, которую вы планируете добавлять к инвестициям каждый месяц"
+          step="100"
+          suffix=" ₽"
+        />
+
+        <NumberInput
+          name="brokerCommission"
+          value={bondParams.brokerCommission}
+          onChange={onBondParamsChange}
+          label="Комиссия брокера"
+          tooltip="Процент, который брокер взимает за каждую операцию покупки облигаций"
+          step="0.1"
+          min="0"
+          max="100"
+          suffix=" %"
+        />
+
+        <NumberInput
+          name="taxRate"
+          value={bondParams.taxRate}
+          onChange={onBondParamsChange}
+          label="Ставка налога"
+          tooltip="Процент налога, который взимается с купонного дохода (стандартная ставка НДФЛ - 13%)"
+          step="1"
+          min="0"
+          max="100"
+          suffix=" %"
+        />
+
+        <NumberInput
+          name="duration"
+          value={duration}
+          onChange={onDurationChange}
+          label="Период расчета"
+          tooltip="Количество месяцев, на которые вы планируете инвестировать"
+          step="1"
+          min="1"
+          max="120"
+          suffix=" мес."
+        />
+      </div>
+
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h2 className="text-lg font-semibold mb-4 text-gray-700">
+          Параметры облигации
+        </h2>
+
+        <NumberInput
+          name="bondPrice"
+          value={bondParams.bondPrice}
+          onChange={onBondParamsChange}
+          label="Текущая цена облигации"
+          tooltip="Рыночная стоимость одной облигации. Может отличаться от номинала и изменяться со временем"
+          step="0.01"
+          min="0.01"
+          suffix=" ₽"
+        />
+
+        <NumberInput
+          name="bondNominal"
+          value={bondParams.bondNominal}
+          onChange={onBondParamsChange}
+          label="Номинал облигации"
+          tooltip="Номинальная стоимость облигации, которая будет выплачена при погашении"
+          step="0.01"
+          min="0.01"
+          suffix=" ₽"
+        />
+
+        <NumberInput
+          name="couponAmount"
+          value={bondParams.couponAmount}
+          onChange={onBondParamsChange}
+          label="Размер купона"
+          tooltip="Сумма в рублях, которую эмитент выплачивает за каждую облигацию при каждой купонной выплате"
+          step="0.01"
+          min="0"
+          suffix=" ₽"
+        />
+
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="text-md font-semibold text-blue-800 mb-2">
+            Что такое облигации?
+          </h3>
+          <p className="text-sm text-blue-800">
+            Облигация — это долговая ценная бумага. Покупая облигацию, вы даёте
+            деньги в долг компании или государству. В обмен вы получаете:
+          </p>
+          <ul className="text-sm text-blue-800 list-disc pl-5 mt-2">
+            <li>
+              Регулярные выплаты (купоны) — в % от номинала или фиксированной
+              суммой
+            </li>
+            <li>Возврат номинала облигации при погашении</li>
+          </ul>
+          <p className="text-sm text-blue-800 mt-2">
+            Доходность облигации складывается из купонных выплат и разницы между
+            ценой покупки и номиналом при погашении.
+          </p>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

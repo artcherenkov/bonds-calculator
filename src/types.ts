@@ -1,53 +1,66 @@
-// types.ts - Обновленные типы для использования во всем приложении
+// src/types.ts - Updated with additional types
 export interface BondParams {
-    initialInvestment: number;
-    monthlyInvestment: number;
-    bondPrice: number;
-    bondNominal: number;
-    couponAmount: number;
-    brokerCommission: number;
-    taxRate: number;
-    startMonth: number;  // Новый параметр: месяц начала инвестирования (1-12)
-    startYear: number;   // Новый параметр: год начала инвестирования
+  initialInvestment: number;
+  monthlyInvestment: number;
+  bondPrice: number;
+  bondNominal: number;
+  couponAmount: number;
+  brokerCommission: number;
+  taxRate: number;
 }
 
 export interface CouponSchedule {
-    month: number;
-    year: number;
-    amount: number;
+  month: number;
+  year: number;
+  amount: number;
 }
 
 export interface MonthlyData {
-    month: number;       // Порядковый номер месяца (1, 2, 3...)
-    date: string;        // Форматированная дата (MM/YYYY)
-    bonds: number;       // Общее количество облигаций
-    invested: number;    // Общая сумма инвестиций
-    monthlyIncome: number; // Купонный доход за текущий месяц (после налогов)
-    totalIncome: number; // Общий купонный доход (накопленный)
-    cash: number;        // Остаток денежных средств
-    marketValue: number; // Рыночная стоимость портфеля
-    nominalValue: number; // Номинальная стоимость портфеля
-    commission: number;  // Комиссия за текущий месяц
-    totalCommission: number; // Общая комиссия (накопленная)
-    tax: number;         // Налог за текущий месяц
-    totalTax: number;    // Общий налог (накопленный)
-    bondsPurchased: number; // Количество купленных облигаций в текущем месяце
-    bondsPurchaseExpense: number; // Сумма расходов на покупку облигаций в текущем месяце
-    isInitial: boolean;  // Флаг, указывающий, является ли это начальной инвестицией
+  month: number;
+  date: string;
+  bonds: number;
+  invested: number;
+  monthlyIncome: number;
+  totalIncome: number;
+  cash: number;
+  marketValue: number;
+  nominalValue: number;
+  commission: number;
+  totalCommission: number;
+  tax: number;
+  totalTax: number;
+  bondsPurchased: number;
+  bondsPurchaseExpense: number;
 }
 
 export interface CalculationResults {
-    totalBonds: number;
-    totalInvested: number;
-    totalCouponIncome: number;
-    totalBrokerCommission: number;
-    totalTaxPaid: number;
-    finalMarketValue: number;
-    totalProfit: number;
-    roiPercent: number;
-    annualRoi: number;
-    maturityDate: string;
-    remainingCash: number;
+  totalBonds: number;
+  totalInvested: number;
+  totalCouponIncome: number;
+  totalBrokerCommission: number;
+  totalTaxPaid: number;
+  finalMarketValue: number;
+  totalProfit: number;
+  roiPercent: number;
+  annualRoi: number;
+  maturityDate: string;
+  remainingCash: number;
 }
 
-export type TabType = "parameters" | "couponSchedule" | "results" | "charts" | "monthly" | "help";
+export type TabType =
+  | "parameters"
+  | "couponSchedule"
+  | "results"
+  | "charts"
+  | "monthly"
+  | "help";
+
+// New types for portfolio management
+export interface PortfolioSummary {
+  id: string;
+  name: string;
+  createdAt: number;
+  lastModified: number;
+  roiPercent?: number;
+  totalInvested?: number;
+}

@@ -1,4 +1,4 @@
-// services/calculator.ts - Улучшенный сервис для расчета инвестиций в облигации
+// services/calculator.ts - Исправленный сервис для расчета инвестиций в облигации
 import { format } from "date-fns";
 import {
   BondParams,
@@ -13,7 +13,6 @@ import {
  * - Купонных выплат и их реинвестирования
  * - Налогов на купонный доход
  * - Ежемесячного пополнения
- * - Выбранной начальной даты инвестирования
  */
 export const calculateInvestment = (
   bondParams: BondParams,
@@ -27,8 +26,6 @@ export const calculateInvestment = (
     bondNominal,
     brokerCommission,
     taxRate,
-    startMonth,
-    startYear,
   } = bondParams;
 
   // Сортируем расписание купонов по дате
@@ -46,8 +43,14 @@ export const calculateInvestment = (
   let remainingCash = 0; // Остаток денежных средств
   const monthlyDataArray: MonthlyData[] = []; // Массив для хранения данных по месяцам
 
-  // Для расчетов по месяцам используем выбранную начальную дату
-  const startDate = new Date(startYear, startMonth - 1, 1); // -1, потому что месяцы в JS начинаются с 0
+  // Используем текущую дату как стартовую
+  const currentDate = new Date();
+  // Создаем безопасную копию текущей даты для начала расчетов
+  const startDate = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    1,
+  );
   let latestDate = new Date(startDate);
 
   // ШАГ 1: Первоначальная покупка облигаций - добавляем отдельной записью
@@ -90,7 +93,7 @@ export const calculateInvestment = (
     totalTax: 0,
     bondsPurchased: initialBondsPurchased,
     bondsPurchaseExpense: initialPurchaseAmount,
-    isInitial: true, // Маркер начальной инвестиции
+    // Не добавляем isInitial, так как этого свойства нет в интерфейсе MonthlyData
   });
 
   // Создаем массив всех месяцев для расчета (начиная со второго месяца)
@@ -123,11 +126,9 @@ export const calculateInvestment = (
     // Если есть купонная выплата
     if (couponPayment) {
       // Рассчитываем валовый купонный доход
-      // Формула: валовый_доход = количество_облигаций * размер_купона
       grossCouponIncome = totalBonds * couponPayment.amount;
 
       // Рассчитываем налог на купонный доход
-      // Формула: налог = валовый_доход * ставка_налога / 100
       taxOnCoupon = grossCouponIncome * (taxRate / 100);
 
       // Рассчитываем чистый купонный доход после уплаты налога
@@ -139,7 +140,6 @@ export const calculateInvestment = (
     }
 
     // Рассчитываем доступные средства для покупки новых облигаций
-    // Формула: доступные_средства = остаток + чистый_купон + ежемесячное_пополнение
     const availableCash = remainingCash + netCouponIncome + monthlyInvestment;
 
     // Переменные для отслеживания данных текущего месяца
@@ -150,7 +150,6 @@ export const calculateInvestment = (
     // Если есть доступные средства для покупки хотя бы одной облигации
     if (availableCash >= bondPrice) {
       // Рассчитываем максимальную сумму для покупки с учетом комиссии
-      // Формула: max_сумма = доступные_средства / (1 + комиссия_процент / 100)
       const maxPurchaseAmount = availableCash / (1 + brokerCommission / 100);
 
       // Рассчитываем количество облигаций, которое можно купить
@@ -173,7 +172,6 @@ export const calculateInvestment = (
     }
 
     // Рассчитываем остаток денежных средств
-    // Формула: новый_остаток = доступные_средства - сумма_покупки - комиссия
     remainingCash = availableCash - bondsPurchaseExpense - brokerFee;
 
     // Если было ежемесячное пополнение, добавляем его к общей сумме инвестиций
@@ -203,7 +201,7 @@ export const calculateInvestment = (
       totalTax: totalTaxPaid,
       bondsPurchased: newMonthlyBonds,
       bondsPurchaseExpense: bondsPurchaseExpense,
-      isInitial: false, // Не является начальной инвестицией
+      // Удаляем isInitial, так как этого свойства нет в интерфейсе MonthlyData
     });
   }
 
