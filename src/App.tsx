@@ -21,9 +21,9 @@ import {
 
 // Форматирование числа для отображения
 const formatNumber = (number: number, decimals = 2) => {
-  return new Intl.NumberFormat('ru-RU', {
+  return new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
+    maximumFractionDigits: decimals,
   }).format(number);
 };
 
@@ -70,12 +70,12 @@ interface CalculationResults {
 
 const BondCalculator = () => {
   const [bondParams, setBondParams] = useState<BondParams>({
-    initialInvestment: 300000,
-    monthlyInvestment: 10000,
-    bondPrice: 827.52,
-    bondNominal: 812.59,
-    couponAmount: 14.11,
-    remainingCoupons: 103,
+    initialInvestment: 18500,
+    monthlyInvestment: 0,
+    bondPrice: 1021,
+    bondNominal: 1000,
+    couponAmount: 18.49,
+    remainingCoupons: 11,
     couponFrequency: 12,
     brokerCommission: 0.3,
     taxRate: 13,
