@@ -124,7 +124,14 @@ const BondCalculator = () => {
     totalBrokerCommission += initialCommission;
 
     for (let month = 1; month <= remainingCoupons; month++) {
-      const grossCouponIncome = totalBonds * couponAmount;
+      const isCouponMonth = month % (12 / couponFrequency) === 0;
+      let grossCouponIncome = 0;
+
+      if (!isCouponMonth) {
+        continue;
+      }
+
+      grossCouponIncome = totalBonds * couponAmount;
       const taxOnCoupon = grossCouponIncome * (taxRate / 100);
       const netCouponIncome = grossCouponIncome - taxOnCoupon;
 
