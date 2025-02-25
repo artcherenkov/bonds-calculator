@@ -1,4 +1,4 @@
-// components/BondCalculator.tsx - Основной компонент калькулятора
+// components/BondCalculator.tsx - Обновленный основной компонент калькулятора
 import React, { useState, useEffect, ChangeEvent } from "react";
 import { TrendingUp } from "lucide-react";
 import {
@@ -15,16 +15,24 @@ import CouponScheduleTab from "./CouponScheduleTab";
 import ResultsTab from "./ResultsTab";
 import ChartsTab from "./ChartsTab";
 import MonthlyDataTab from "./MonthlyDataTab";
+import HelpGuide from "./HelpGuide";
 
 const BondCalculator: React.FC = () => {
+  // Получаем текущий месяц и год для инициализации
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1; // JavaScript месяцы начинаются с 0
+  const currentYear = currentDate.getFullYear();
+
   const [bondParams, setBondParams] = useState<BondParams>({
-    initialInvestment: 18500,
-    monthlyInvestment: 0,
-    bondPrice: 1021,
+    initialInvestment: 100000,
+    monthlyInvestment: 5000,
+    bondPrice: 1020,
     bondNominal: 1000,
-    couponAmount: 18.49,
+    couponAmount: 20,
     brokerCommission: 0.3,
     taxRate: 13,
+    startMonth: currentMonth, // Инициализируем текущим месяцем
+    startYear: currentYear, // Инициализируем текущим годом
   });
 
   const [couponSchedule, setCouponSchedule] = useState<CouponSchedule[]>([]);
@@ -37,11 +45,14 @@ const BondCalculator: React.FC = () => {
   useEffect(() => {
     if (couponSchedule.length === 0) {
       const defaultSchedule: CouponSchedule[] = [];
-      const currentDate = new Date();
+      const startDate = new Date(
+        bondParams.startYear,
+        bondParams.startMonth - 1,
+      );
 
       for (let i = 1; i <= 12; i++) {
-        const paymentDate = new Date(currentDate);
-        paymentDate.setMonth(currentDate.getMonth() + i);
+        const paymentDate = new Date(startDate);
+        paymentDate.setMonth(startDate.getMonth() + i);
 
         defaultSchedule.push({
           month: paymentDate.getMonth() + 1,
@@ -52,14 +63,35 @@ const BondCalculator: React.FC = () => {
 
       setCouponSchedule(defaultSchedule);
     }
-  }, []);
+  }, [bondParams.startMonth, bondParams.startYear]);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (
+    e: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
-    setBondParams({
-      ...bondParams,
-      [name]: parseFloat(value) || 0,
-    });
+
+    // Для числовых полей преобразуем строку в число
+    if (
+      name === "initialInvestment" ||
+      name === "monthlyInvestment" ||
+      name === "bondPrice" ||
+      name === "bondNominal" ||
+      name === "couponAmount" ||
+      name === "brokerCommission" ||
+      name === "taxRate" ||
+      name === "startMonth" ||
+      name === "startYear"
+    ) {
+      setBondParams({
+        ...bondParams,
+        [name]: parseFloat(value) || 0,
+      });
+    } else {
+      setBondParams({
+        ...bondParams,
+        [name]: value,
+      });
+    }
   };
 
   const handleDurationChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -78,8 +110,8 @@ const BondCalculator: React.FC = () => {
 
   const addCouponPayment = () => {
     const lastPayment = couponSchedule[couponSchedule.length - 1] || {
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
+      month: bondParams.startMonth,
+      year: bondParams.startYear,
       amount: bondParams.couponAmount,
     };
 
@@ -151,6 +183,8 @@ const BondCalculator: React.FC = () => {
           {activeTab === "monthly" && (
             <MonthlyDataTab monthlyData={monthlyData} />
           )}
+
+          {activeTab === "help" && <HelpGuide />}
         </div>
       </div>
     </div>

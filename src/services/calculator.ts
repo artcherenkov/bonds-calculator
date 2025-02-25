@@ -1,151 +1,244 @@
-// services/calculator.ts - Сервис для выполнения расчетов
+// services/calculator.ts - Улучшенный сервис для расчета инвестиций в облигации
 import { format } from "date-fns";
-import { BondParams, CouponSchedule, MonthlyData, CalculationResults } from '../types';
+import {
+  BondParams,
+  CouponSchedule,
+  MonthlyData,
+  CalculationResults,
+} from "../types";
 
+/**
+ * Рассчитывает инвестиции в облигации с учетом:
+ * - Комиссии брокера с каждой сделки покупки
+ * - Купонных выплат и их реинвестирования
+ * - Налогов на купонный доход
+ * - Ежемесячного пополнения
+ * - Выбранной начальной даты инвестирования
+ */
 export const calculateInvestment = (
-    bondParams: BondParams,
-    couponSchedule: CouponSchedule[],
-    duration: number
+  bondParams: BondParams,
+  couponSchedule: CouponSchedule[],
+  duration: number,
 ): { results: CalculationResults; monthlyData: MonthlyData[] } => {
-    const {
-        initialInvestment,
-        monthlyInvestment,
-        bondPrice,
-        bondNominal,
-        brokerCommission,
-        taxRate,
-    } = bondParams;
+  const {
+    initialInvestment,
+    monthlyInvestment,
+    bondPrice,
+    bondNominal,
+    brokerCommission,
+    taxRate,
+    startMonth,
+    startYear,
+  } = bondParams;
 
-    // Сортируем расписание купонов по дате
-    const sortedSchedule = [...couponSchedule].sort((a, b) => {
-        if (a.year !== b.year) return a.year - b.year;
-        return a.month - b.month;
+  // Сортируем расписание купонов по дате
+  const sortedSchedule = [...couponSchedule].sort((a, b) => {
+    if (a.year !== b.year) return a.year - b.year;
+    return a.month - b.month;
+  });
+
+  // Инициализируем переменные для отслеживания состояния инвестиций
+  let totalBonds = 0; // Общее количество облигаций
+  let totalInvested = 0; // Общая сумма инвестиций
+  let totalCouponIncome = 0; // Общий чистый купонный доход
+  let totalBrokerCommission = 0; // Общая сумма комиссий брокера
+  let totalTaxPaid = 0; // Общая сумма налогов
+  let remainingCash = 0; // Остаток денежных средств
+  const monthlyDataArray: MonthlyData[] = []; // Массив для хранения данных по месяцам
+
+  // Для расчетов по месяцам используем выбранную начальную дату
+  const startDate = new Date(startYear, startMonth - 1, 1); // -1, потому что месяцы в JS начинаются с 0
+  let latestDate = new Date(startDate);
+
+  // ШАГ 1: Первоначальная покупка облигаций - добавляем отдельной записью
+
+  // Для корректного расчета максимальной суммы покупки с учетом комиссии используем формулу:
+  // max_сумма_покупки = доступные_средства / (1 + комиссия_процент / 100)
+  const maxInitialPurchase = initialInvestment / (1 + brokerCommission / 100);
+
+  // Рассчитываем количество облигаций, которое можно купить изначально
+  const initialBondsPurchased = Math.floor(maxInitialPurchase / bondPrice);
+
+  // Рассчитываем фактическую сумму покупки облигаций
+  const initialPurchaseAmount = initialBondsPurchased * bondPrice;
+
+  // Рассчитываем комиссию от фактической суммы покупки
+  const initialCommission = initialPurchaseAmount * (brokerCommission / 100);
+
+  // Рассчитываем остаток денежных средств после покупки
+  remainingCash = initialInvestment - initialPurchaseAmount - initialCommission;
+
+  // Обновляем общие счетчики
+  totalBonds += initialBondsPurchased;
+  totalInvested += initialInvestment;
+  totalBrokerCommission += initialCommission;
+
+  // Добавляем запись о начальной инвестиции в массив данных
+  monthlyDataArray.push({
+    month: 1, // Первый месяц
+    date: format(startDate, "MM/yyyy"),
+    bonds: totalBonds,
+    invested: totalInvested,
+    monthlyIncome: 0, // Нет купонного дохода в первый месяц
+    totalIncome: 0,
+    cash: remainingCash,
+    marketValue: totalBonds * bondPrice + remainingCash,
+    nominalValue: totalBonds * bondNominal + remainingCash,
+    commission: initialCommission,
+    totalCommission: totalBrokerCommission,
+    tax: 0, // Нет налога в первый месяц
+    totalTax: 0,
+    bondsPurchased: initialBondsPurchased,
+    bondsPurchaseExpense: initialPurchaseAmount,
+    isInitial: true, // Маркер начальной инвестиции
+  });
+
+  // Создаем массив всех месяцев для расчета (начиная со второго месяца)
+  const allMonths: { month: number; year: number }[] = [];
+  for (let i = 1; i < duration; i++) {
+    // Начинаем с 1, потому что 0 - это начальная инвестиция
+    const calcDate = new Date(startDate);
+    calcDate.setMonth(startDate.getMonth() + i);
+    allMonths.push({
+      month: calcDate.getMonth() + 1,
+      year: calcDate.getFullYear(),
     });
+  }
 
-    let totalBonds = 0;
-    let totalInvested = 0;
-    let totalCouponIncome = 0;
-    let totalBrokerCommission = 0;
-    let totalTaxPaid = 0;
-    let remainingCash = 0;
-    const monthlyDataArray: MonthlyData[] = [];
+  // ШАГ 2: Помесячные расчеты (начиная со второго месяца)
+  // Цикл по всем месяцам
+  for (let i = 0; i < allMonths.length; i++) {
+    const { month, year } = allMonths[i];
+    const monthIndex = i + 2; // Индекс месяца в таблице (начиная со 2)
 
-    // Начальная покупка облигаций
-    const initialCommission = initialInvestment * (brokerCommission / 100);
-    const investmentAfterCommission = initialInvestment - initialCommission;
-    const initialBondsPurchased = Math.floor(
-        investmentAfterCommission / bondPrice,
+    // Проверяем, есть ли купонная выплата в этом месяце
+    const couponPayment = sortedSchedule.find(
+      (c) => c.month === month && c.year === year,
     );
-    remainingCash =
-        investmentAfterCommission - initialBondsPurchased * bondPrice;
 
-    totalBonds += initialBondsPurchased;
-    totalInvested += initialInvestment;
-    totalBrokerCommission += initialCommission;
+    let grossCouponIncome = 0; // Валовый купонный доход
+    let netCouponIncome = 0; // Чистый купонный доход после налогов
+    let taxOnCoupon = 0; // Налог на купонный доход
 
-    const currentDate = new Date();
-    let latestDate = new Date();
+    // Если есть купонная выплата
+    if (couponPayment) {
+      // Рассчитываем валовый купонный доход
+      // Формула: валовый_доход = количество_облигаций * размер_купона
+      grossCouponIncome = totalBonds * couponPayment.amount;
 
-    // Создаем массив всех месяцев для расчета
-    const allMonths: { month: number; year: number }[] = [];
-    for (let i = 0; i < duration; i++) {
-        const calcDate = new Date(currentDate);
-        calcDate.setMonth(currentDate.getMonth() + i);
-        allMonths.push({
-            month: calcDate.getMonth() + 1,
-            year: calcDate.getFullYear(),
-        });
+      // Рассчитываем налог на купонный доход
+      // Формула: налог = валовый_доход * ставка_налога / 100
+      taxOnCoupon = grossCouponIncome * (taxRate / 100);
+
+      // Рассчитываем чистый купонный доход после уплаты налога
+      netCouponIncome = grossCouponIncome - taxOnCoupon;
+
+      // Обновляем общие суммы
+      totalCouponIncome += netCouponIncome;
+      totalTaxPaid += taxOnCoupon;
     }
 
-    // Для хранения предыдущих значений
-    let prevTotalIncome = 0;
-    let prevBonds = totalBonds;
+    // Рассчитываем доступные средства для покупки новых облигаций
+    // Формула: доступные_средства = остаток + чистый_купон + ежемесячное_пополнение
+    const availableCash = remainingCash + netCouponIncome + monthlyInvestment;
 
-    // Цикл по всем месяцам
-    for (let i = 0; i < allMonths.length; i++) {
-        const { month, year } = allMonths[i];
+    // Переменные для отслеживания данных текущего месяца
+    let newMonthlyBonds = 0; // Количество купленных облигаций
+    let bondsPurchaseExpense = 0; // Сумма покупки облигаций
+    let brokerFee = 0; // Комиссия брокера
 
-        // Проверяем, есть ли купонная выплата в этом месяце
-        const couponPayment = sortedSchedule.find(
-            (c) => c.month === month && c.year === year,
-        );
+    // Если есть доступные средства для покупки хотя бы одной облигации
+    if (availableCash >= bondPrice) {
+      // Рассчитываем максимальную сумму для покупки с учетом комиссии
+      // Формула: max_сумма = доступные_средства / (1 + комиссия_процент / 100)
+      const maxPurchaseAmount = availableCash / (1 + brokerCommission / 100);
 
-        let grossCouponIncome = 0;
-        let netCouponIncome = 0;
-        let taxOnCoupon = 0;
+      // Рассчитываем количество облигаций, которое можно купить
+      newMonthlyBonds = Math.floor(maxPurchaseAmount / bondPrice);
 
-        // Если есть купонная выплата
-        if (couponPayment) {
-            grossCouponIncome = totalBonds * couponPayment.amount;
-            taxOnCoupon = grossCouponIncome * (taxRate / 100);
-            netCouponIncome = grossCouponIncome - taxOnCoupon;
+      // Если можем купить хотя бы одну облигацию
+      if (newMonthlyBonds > 0) {
+        // Рассчитываем фактическую сумму покупки
+        bondsPurchaseExpense = newMonthlyBonds * bondPrice;
 
-            totalCouponIncome += netCouponIncome;
-            totalTaxPaid += taxOnCoupon;
-        }
+        // Рассчитываем комиссию брокера
+        brokerFee = bondsPurchaseExpense * (brokerCommission / 100);
 
-        // Добавляем ежемесячное пополнение
-        const availableCash = remainingCash + netCouponIncome + monthlyInvestment;
-
-        // Комиссия брокера на новую инвестицию
-        const brokerFee = monthlyInvestment > 0 ? monthlyInvestment * (brokerCommission / 100) : 0;
-        const cashAfterCommission = availableCash - brokerFee;
+        // Обновляем общую сумму комиссий
         totalBrokerCommission += brokerFee;
 
-        // Покупка новых облигаций
-        const newMonthlyBonds = Math.floor(cashAfterCommission / bondPrice);
-        const bondsPurchaseExpense = newMonthlyBonds * bondPrice;
-        remainingCash = cashAfterCommission - bondsPurchaseExpense;
-
+        // Обновляем общее количество облигаций
         totalBonds += newMonthlyBonds;
-        totalInvested += monthlyInvestment;
-
-        // Обновляем дату
-        const calcDate = new Date(currentDate);
-        calcDate.setMonth(currentDate.getMonth() + i);
-        latestDate = calcDate;
-
-        // Добавляем данные месяца
-        monthlyDataArray.push({
-            month: i + 1,
-            date: format(calcDate, "MM/yyyy"),
-            bonds: totalBonds,
-            invested: totalInvested,
-            monthlyIncome: netCouponIncome,
-            totalIncome: totalCouponIncome,
-            cash: remainingCash,
-            marketValue: totalBonds * bondPrice + remainingCash,
-            nominalValue: totalBonds * bondNominal + remainingCash,
-            commission: brokerFee,
-            totalCommission: totalBrokerCommission,
-            tax: taxOnCoupon,
-            totalTax: totalTaxPaid,
-            bondsPurchased: newMonthlyBonds,
-            bondsPurchaseExpense: bondsPurchaseExpense,
-        });
+      }
     }
 
-    const finalMarketValue = totalBonds * bondNominal + remainingCash;
-    const totalProfit = finalMarketValue - totalInvested;
-    const roiPercent = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-    const years = duration / 12;
-    const annualRoi = totalInvested > 0 && years > 0
-        ? (Math.pow(finalMarketValue / totalInvested, 1 / years) - 1) * 100
-        : 0;
+    // Рассчитываем остаток денежных средств
+    // Формула: новый_остаток = доступные_средства - сумма_покупки - комиссия
+    remainingCash = availableCash - bondsPurchaseExpense - brokerFee;
 
-    const calculationResults: CalculationResults = {
-        totalBonds,
-        totalInvested,
-        totalCouponIncome,
-        totalBrokerCommission,
-        totalTaxPaid,
-        finalMarketValue,
-        totalProfit,
-        roiPercent,
-        annualRoi,
-        maturityDate: format(latestDate, "MM/yyyy"),
-        remainingCash,
-    };
+    // Если было ежемесячное пополнение, добавляем его к общей сумме инвестиций
+    if (monthlyInvestment > 0) {
+      totalInvested += monthlyInvestment;
+    }
 
-    return { results: calculationResults, monthlyData: monthlyDataArray };
+    // Обновляем дату для расчета
+    const calcDate = new Date(startDate);
+    calcDate.setMonth(startDate.getMonth() + i + 1); // +1 потому что начинаем со второго месяца
+    latestDate = calcDate;
+
+    // Добавляем данные месяца в массив
+    monthlyDataArray.push({
+      month: monthIndex,
+      date: format(calcDate, "MM/yyyy"),
+      bonds: totalBonds,
+      invested: totalInvested,
+      monthlyIncome: netCouponIncome,
+      totalIncome: totalCouponIncome,
+      cash: remainingCash,
+      marketValue: totalBonds * bondPrice + remainingCash,
+      nominalValue: totalBonds * bondNominal + remainingCash,
+      commission: brokerFee,
+      totalCommission: totalBrokerCommission,
+      tax: taxOnCoupon,
+      totalTax: totalTaxPaid,
+      bondsPurchased: newMonthlyBonds,
+      bondsPurchaseExpense: bondsPurchaseExpense,
+      isInitial: false, // Не является начальной инвестицией
+    });
+  }
+
+  // ШАГ 3: Итоговые результаты
+  // Рассчитываем финальную стоимость инвестиции при погашении по номиналу
+  const finalMarketValue = totalBonds * bondNominal + remainingCash;
+
+  // Общая прибыль = итоговая стоимость - вложенные средства
+  const totalProfit = finalMarketValue - totalInvested;
+
+  // Рассчитываем доходность инвестиций
+  const roiPercent =
+    totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
+
+  // Рассчитываем годовую доходность (CAGR)
+  const years = duration / 12;
+  const annualRoi =
+    totalInvested > 0 && years > 0
+      ? (Math.pow(finalMarketValue / totalInvested, 1 / years) - 1) * 100
+      : 0;
+
+  // Формируем итоговый объект с результатами
+  const calculationResults: CalculationResults = {
+    totalBonds,
+    totalInvested,
+    totalCouponIncome,
+    totalBrokerCommission,
+    totalTaxPaid,
+    finalMarketValue,
+    totalProfit,
+    roiPercent,
+    annualRoi,
+    maturityDate: format(latestDate, "MM/yyyy"),
+    remainingCash,
+  };
+
+  return { results: calculationResults, monthlyData: monthlyDataArray };
 };

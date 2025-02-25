@@ -1,9 +1,11 @@
-// components/Navigation.tsx - Компонент навигации
+// components/Navigation.tsx - Обновленный компонент навигации
 import {
   Settings,
   Calculator,
   Calendar,
   PieChart,
+  List,
+  HelpCircle,
 } from "lucide-react";
 import { TabType } from "../types";
 
@@ -14,7 +16,7 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ activeTab, onChangeTab }) => {
   return (
-    <div className="flex mb-6 border-b">
+    <div className="flex flex-wrap mb-6 border-b">
       <button
         className={`px-4 py-2 ${activeTab === "parameters" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-600"}`}
         onClick={() => onChangeTab("parameters")}
@@ -43,7 +45,13 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onChangeTab }) => {
         className={`px-4 py-2 ${activeTab === "monthly" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-600"}`}
         onClick={() => onChangeTab("monthly")}
       >
-        <Calendar className="inline mr-1 w-4 h-4" /> Помесячные данные
+        <List className="inline mr-1 w-4 h-4" /> Помесячные данные
+      </button>
+      <button
+        className={`px-4 py-2 ${activeTab === "help" ? "border-b-2 border-blue-500 text-blue-600" : "text-gray-600"}`}
+        onClick={() => onChangeTab("help")}
+      >
+        <HelpCircle className="inline mr-1 w-4 h-4" /> Справка
       </button>
     </div>
   );
